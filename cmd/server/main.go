@@ -40,21 +40,27 @@ func main() {
 	subCandidateRepo := repository.NewSubCandidateRepository(db)
 	ticketRepo := repository.NewTicketRepository(db)
 	voteRepo := repository.NewVoteRepository(db)
+	adminRepo := repository.NewAdminRepository(db)
+	loginAttemptRepo := repository.NewLoginAttemptRepository(db)
 
 	// Initialize usecases
 	roomUsecase := usecase.NewRoomUsecase(roomRepo)
 	candidateUsecase := usecase.NewCandidateUsecase(candidateRepo, subCandidateRepo, roomRepo)
 	ticketUsecase := usecase.NewTicketUsecase(ticketRepo, roomRepo)
 	votingUsecase := usecase.NewVotingUsecase(voteRepo, roomRepo, candidateRepo, ticketRepo)
+	authUsecase := usecase.NewAuthUsecase(adminRepo, loginAttemptRepo, cfg.JWTSecret, cfg.EncryptionKey)
+	adminUsecase := usecase.NewAdminUsecase(adminRepo, roomRepo, cfg.EncryptionKey)
 
 	// Initialize handlers
 	roomHandler := handler.NewRoomHandler(roomUsecase)
 	candidateHandler := handler.NewCandidateHandler(candidateUsecase)
 	ticketHandler := handler.NewTicketHandler(ticketUsecase)
 	votingHandler := handler.NewVotingHandler(votingUsecase)
+	authHandler := handler.NewAuthHandler(authUsecase)
+	adminHandler := handler.NewAdminHandler(adminUsecase)
 
 	// Setup router
-	router := setupRouter(cfg, roomHandler, candidateHandler, ticketHandler, votingHandler)
+	router := setupRouter(cfg, roomHandler, candidateHandler, ticketHandler, votingHandler, authHandler, adminHandler)
 
 	// Start server
 	addr := fmt.Sprintf(":%s", cfg.ServerPort)
@@ -70,6 +76,8 @@ func setupRouter(
 	candidateHandler *handler.CandidateHandler,
 	ticketHandler *handler.TicketHandler,
 	votingHandler *handler.VotingHandler,
+	authHandler *handler.AuthHandler,
+	adminHandler *handler.AdminHandler,
 ) *gin.Engine {
 	// Set gin mode based on environment
 	if cfg.Environment == "production" {
@@ -91,6 +99,19 @@ func setupRouter(
 	// API v1 routes
 	v1 := router.Group("/api/v1")
 	{
+		// Authentication routes (public)
+		auth := v1.Group("/auth")
+		{
+			auth.POST("/login", authHandler.Login)
+		}
+
+		// Owner routes (Basic Auth only)
+		owner := v1.Group("/owner")
+		owner.Use(middleware.BasicAuth(cfg.OwnerUsername, cfg.OwnerPassword))
+		{
+			owner.POST("/create-admin", adminHandler.CreateAdmin)
+		}
+
 		// Public voter routes
 		vote := v1.Group("/vote")
 		{
@@ -99,10 +120,14 @@ func setupRouter(
 			vote.POST("/verify-ticket", votingHandler.VerifyTicket)
 		}
 
-		// Admin routes (protected)
+		// Admin routes (JWT protected)
 		admin := v1.Group("/admin")
 		admin.Use(middleware.AuthMiddleware(cfg.JWTSecret))
 		{
+			// Admin quota info
+			admin.GET("/quota", adminHandler.GetAdminQuota)
+
+			// Room management
 			// Room management
 			rooms := admin.Group("/rooms")
 			{

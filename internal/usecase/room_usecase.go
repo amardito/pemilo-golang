@@ -17,9 +17,10 @@ func NewRoomUsecase(roomRepo domain.RoomRepository) *RoomUsecase {
 	}
 }
 
-func (u *RoomUsecase) CreateRoom(name string, votersType domain.VotersType, votersLimit *int, sessionStartTime, sessionEndTime *time.Time, status domain.RoomStatus, publishState domain.PublishState) (*domain.Room, error) {
+func (u *RoomUsecase) CreateRoom(adminID, name string, votersType domain.VotersType, votersLimit *int, sessionStartTime, sessionEndTime *time.Time, status domain.RoomStatus, publishState domain.PublishState) (*domain.Room, error) {
 	room := &domain.Room{
 		ID:               uuid.New().String(),
+		AdminID:          adminID,
 		Name:             name,
 		VotersType:       votersType,
 		VotersLimit:      votersLimit,

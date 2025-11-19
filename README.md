@@ -5,6 +5,8 @@ A robust backend API for online elections/voting built with Go, following Clean 
 ## 🌟 Features
 
 ### Admin Dashboard
+- **Authentication System**: Secure login with rate limiting (3 attempts → 5 min lockout)
+- **Quota Management**: Per-admin room and voter limits
 - **Room Configuration**: Create and manage election rooms with 3 voter types
 - **Candidate Management**: Add/edit candidates with photos, descriptions, and sub-candidates
 - **Ticket Management**: CSV bulk upload or manual ticket creation
@@ -18,6 +20,12 @@ A robust backend API for online elections/voting built with Go, following Clean 
   - `wild_limited`: First-come-first-served with vote limits
   - `wild_unlimited`: Time-range based unlimited voting
 - **Secure Voting**: Single-vote enforcement, double-vote prevention
+
+### Security Features
+- **Password Security**: AES-256 encryption for transmission + Bcrypt hashing for storage
+- **JWT Authentication**: Token-based auth for admin endpoints
+- **Basic Auth**: HTTP Basic Auth for owner-only admin creation
+- **Rate Limiting**: Login attempt tracking and lockout mechanism
 
 ## 🏗️ Architecture
 
@@ -64,12 +72,21 @@ cp .env.example .env
 
 4. Run database migrations:
 ```bash
-# Using your preferred migration tool
+# Install migrate tool
+go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+
+# Run migrations
+migrate -path migrations -database "postgres://user:password@localhost:5432/pemilo?sslmode=disable" up
+
+# Or manually run each migration
 psql -U postgres -d pemilo -f migrations/001_create_rooms_table.sql
 psql -U postgres -d pemilo -f migrations/002_create_candidates_table.sql
 psql -U postgres -d pemilo -f migrations/003_create_sub_candidates_table.sql
 psql -U postgres -d pemilo -f migrations/004_create_tickets_table.sql
 psql -U postgres -d pemilo -f migrations/005_create_votes_table.sql
+psql -U postgres -d pemilo -f migrations/006_create_admins_table.sql
+psql -U postgres -d pemilo -f migrations/007_create_login_attempts_table.sql
+psql -U postgres -d pemilo -f migrations/008_add_admin_id_to_rooms.sql
 ```
 
 5. Run the server:
@@ -81,7 +98,84 @@ Server will start on `http://localhost:8080`
 
 ## 📡 API Endpoints
 
-### Public Endpoints
+### Authentication Endpoints
+
+#### Admin Login
+```http
+POST /api/v1/auth/login
+Content-Type: application/json
+
+{
+  "username": "admin_user",
+  "password": "encrypted-password"  // AES-256 encrypted
+}
+```
+
+Response:
+```json
+{
+  "token": "jwt-token",
+  "expiresAt": "2024-01-01T00:00:00Z",
+  "admin": {
+    "id": "uuid",
+    "username": "admin_user",
+    "maxRoom": 10,
+    "maxVoters": 100
+  }
+}
+```
+
+#### Create Admin (Owner Only)
+```http
+POST /api/v1/owner/create-admin
+Authorization: Basic <base64(owner:password)>
+Content-Type: application/json
+
+{
+  "username": "new_admin",
+  "password": "encrypted-password",
+  "maxRoom": 10,
+  "maxVoters": 100
+}
+```
+
+### Admin Endpoints (Requires JWT)
+
+All admin endpoints require `Authorization: Bearer <token>` header.
+
+#### Get Quota Info
+```http
+GET /api/v1/admin/quota
+```
+
+#### Room Management
+```http
+POST   /api/v1/admin/rooms           # Create room
+GET    /api/v1/admin/rooms           # List rooms
+GET    /api/v1/admin/rooms/:id       # Get room
+PUT    /api/v1/admin/rooms/:id       # Update room
+DELETE /api/v1/admin/rooms/:id       # Delete room
+GET    /api/v1/admin/rooms/:id/realtime  # Real-time stats
+```
+
+#### Candidate Management
+```http
+POST   /api/v1/admin/candidates              # Create candidate
+GET    /api/v1/admin/candidates/:id          # Get candidate
+PUT    /api/v1/admin/candidates/:id          # Update candidate
+DELETE /api/v1/admin/candidates/:id          # Delete candidate
+GET    /api/v1/admin/candidates/room/:roomId # List by room
+```
+
+#### Ticket Management
+```http
+POST   /api/v1/admin/tickets              # Create ticket
+POST   /api/v1/admin/tickets/bulk         # Bulk create tickets
+GET    /api/v1/admin/tickets/room/:roomId # List by room
+DELETE /api/v1/admin/tickets/:id          # Delete ticket
+```
+
+### Public Voter Endpoints
 
 #### Get Voter Room Info
 ```http
@@ -110,37 +204,6 @@ Content-Type: application/json
   "room_id": "uuid",
   "ticket_code": "ABC123"
 }
-```
-
-### Admin Endpoints (Requires JWT)
-
-All admin endpoints require `Authorization: Bearer <token>` header.
-
-#### Room Management
-```http
-POST   /api/v1/admin/rooms           # Create room
-GET    /api/v1/admin/rooms           # List rooms
-GET    /api/v1/admin/rooms/:id       # Get room
-PUT    /api/v1/admin/rooms/:id       # Update room
-DELETE /api/v1/admin/rooms/:id       # Delete room
-GET    /api/v1/admin/rooms/:id/realtime  # Real-time stats
-```
-
-#### Candidate Management
-```http
-POST   /api/v1/admin/candidates              # Create candidate
-GET    /api/v1/admin/candidates/:id          # Get candidate
-PUT    /api/v1/admin/candidates/:id          # Update candidate
-DELETE /api/v1/admin/candidates/:id          # Delete candidate
-GET    /api/v1/admin/candidates/room/:roomId # List by room
-```
-
-#### Ticket Management
-```http
-POST   /api/v1/admin/tickets              # Create ticket
-POST   /api/v1/admin/tickets/bulk         # Bulk create tickets
-GET    /api/v1/admin/tickets/room/:roomId # List by room
-DELETE /api/v1/admin/tickets/:id          # Delete ticket
 ```
 
 ## 🔐 Voter Types Explained
@@ -196,7 +259,9 @@ go test -cover ./...
 
 ## 📦 Database Schema
 
-- **rooms**: Election room configuration
+- **admins**: Admin accounts with quota limits
+- **login_attempts**: Login attempt tracking for rate limiting
+- **rooms**: Election room configuration (linked to admins)
 - **candidates**: Main candidates
 - **sub_candidates**: Optional sub-candidates (e.g., vice president)
 - **tickets**: Single-use voting tickets
@@ -211,17 +276,22 @@ Environment variables (see `.env.example`):
 | `SERVER_PORT` | HTTP server port | `8080` |
 | `DATABASE_URL` | PostgreSQL connection string | Required |
 | `JWT_SECRET` | Secret for JWT signing | `change-this-secret` |
+| `ENCRYPTION_KEY` | AES-256 key (must be 32 bytes) | Required |
+| `OWNER_USERNAME` | Owner account username | `owner` |
+| `OWNER_PASSWORD` | Owner account password | Required |
 | `ENVIRONMENT` | Runtime environment | `development` |
 | `ALLOWED_ORIGINS` | CORS allowed origins | `*` |
 
 ## 🛡️ Security Features
 
-- JWT authentication for admin routes
-- CORS protection
-- SQL injection prevention via prepared statements
-- Unique constraint on votes (prevents double voting)
-- Ticket single-use enforcement
-- Race-condition handling for vote limits
+- **Authentication**: JWT for admin endpoints, Basic Auth for owner endpoints
+- **Password Security**: AES-256 encryption + Bcrypt hashing
+- **Rate Limiting**: 3 failed login attempts → 5 minute lockout
+- **Quota Enforcement**: Per-admin room and voter limits
+- **CORS Protection**: Configurable allowed origins
+- **SQL Injection Prevention**: Prepared statements only
+- **Double Voting Prevention**: Unique constraints on votes table
+- **Ticket Security**: Single-use enforcement with database constraints
 
 ## 📝 License
 

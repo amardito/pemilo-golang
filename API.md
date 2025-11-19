@@ -6,10 +6,101 @@ http://localhost:8080/api/v1
 ```
 
 ## Authentication
+
+### Admin Endpoints
 Admin endpoints require JWT authentication:
 ```
 Authorization: Bearer <your_jwt_token>
 ```
+
+### Owner Endpoints
+Owner endpoints require HTTP Basic Authentication:
+```
+Authorization: Basic <base64(username:password)>
+```
+
+---
+
+## Authentication Endpoints
+
+### Admin Login
+Authenticate admin and receive JWT token. Includes rate limiting (3 failed attempts → 5 minute lockout).
+
+**Request:**
+```http
+POST /auth/login
+Content-Type: application/json
+
+{
+  "username": "admin_user",
+  "password": "AES-256-encrypted-password"
+}
+```
+
+**Response (Success):**
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "expiresAt": "2024-01-15T12:00:00Z",
+  "admin": {
+    "id": "uuid",
+    "username": "admin_user",
+    "maxRoom": 10,
+    "maxVoters": 100
+  }
+}
+```
+
+**Response (Rate Limited):**
+```json
+{
+  "error": "Too many failed login attempts. Please try again later."
+}
+```
+Status: `429 Too Many Requests`
+
+**Notes:**
+- Password must be encrypted with AES-256 on frontend before sending
+- Max 3 failed attempts per username
+- 5 minute lockout after 3 failures
+- No Authorization header required for login
+
+---
+
+## Owner Endpoints
+
+### Create Admin Account
+Create a new admin account. Owner-only operation.
+
+**Request:**
+```http
+POST /owner/create-admin
+Authorization: Basic <base64(owner:password)>
+Content-Type: application/json
+
+{
+  "username": "new_admin",
+  "password": "AES-256-encrypted-password",
+  "maxRoom": 10,
+  "maxVoters": 100
+}
+```
+
+**Response:**
+```json
+{
+  "id": "uuid",
+  "username": "new_admin",
+  "maxRoom": 10,
+  "maxVoters": 100,
+  "isActive": true
+}
+```
+
+**Notes:**
+- Requires HTTP Basic Auth with OWNER_USERNAME and OWNER_PASSWORD
+- Password must be encrypted with AES-256 on frontend
+- Owner credentials are set in environment variables
 
 ---
 
@@ -94,6 +185,36 @@ Content-Type: application/json
 
 ## Admin Endpoints
 
+All admin endpoints require `Authorization: Bearer <token>` header.
+
+### Admin Management
+
+#### Get Quota Information
+Retrieve current quota usage for the authenticated admin.
+
+**Request:**
+```http
+GET /admin/quota
+Authorization: Bearer <token>
+```
+
+**Response:**
+```json
+{
+  "maxRoom": 10,
+  "currentRoom": 5,
+  "maxVoters": 100,
+  "currentVoters": 45
+}
+```
+
+**Notes:**
+- `currentRoom`: Number of rooms created by this admin
+- `currentVoters`: Total voters across all admin's rooms (sum of tickets + wild_limited voters)
+- Returns 403 if quota exceeded when creating rooms
+
+---
+
 ### Room Management
 
 #### Create Room
@@ -112,6 +233,32 @@ Content-Type: application/json
   "publish_state": "draft"
 }
 ```
+
+**Response:**
+```json
+{
+  "id": "uuid",
+  "admin_id": "uuid",
+  "name": "Presidential Election 2024",
+  "voters_type": "custom_tickets",
+  "status": "enabled",
+  "publish_state": "draft",
+  "created_at": "2024-01-15T08:00:00Z"
+}
+```
+
+**Error (Quota Exceeded):**
+```json
+{
+  "error": "Room quota exceeded. Maximum rooms allowed: 10"
+}
+```
+Status: `403 Forbidden`
+
+**Notes:**
+- Room automatically linked to authenticated admin (via JWT)
+- Quota checked before creation (maxRoom and maxVoters)
+- Returns 403 if admin has reached room limit or voter limit
 
 #### List Rooms
 ```http
@@ -308,7 +455,9 @@ Common HTTP Status Codes:
 - `201 Created`: Resource created successfully
 - `400 Bad Request`: Invalid input or business logic violation
 - `401 Unauthorized`: Missing or invalid authentication
+- `403 Forbidden`: Quota exceeded or insufficient permissions
 - `404 Not Found`: Resource not found
+- `429 Too Many Requests`: Rate limit exceeded
 - `500 Internal Server Error`: Server error
 
 ---
@@ -343,9 +492,75 @@ Common HTTP Status Codes:
 
 ---
 
+## Security & Rate Limiting
+
+### Password Security
+- All passwords must be encrypted with AES-256 before transmission
+- Backend decrypts and validates against bcrypt hash
+- Encryption key must be exactly 32 characters (256 bits)
+- Never send plaintext passwords
+
+### Rate Limiting
+- Login endpoint: Max 3 failed attempts per username
+- Lockout duration: 5 minutes
+- Counter resets on successful login
+- Tracked via login_attempts table
+
+### Admin Quotas
+- **maxRoom**: Maximum rooms per admin (default: 10)
+- **maxVoters**: Maximum total voters across all rooms (default: 100)
+- Enforced before room creation
+- Counts: tickets + wild_limited voters
+
+### JWT Tokens
+- Expires after configured duration
+- Contains: admin_id, username, expiration
+- Must be included in Authorization header for admin endpoints
+- Format: `Bearer <token>`
+
+---
+
 ## Example Workflows
 
-### 1. Create Custom Tickets Election
+### 0. Initial Setup (Owner)
+```bash
+# Create first admin account (owner only)
+POST /owner/create-admin
+Authorization: Basic <base64(owner:password)>
+{
+  "username": "admin1",
+  "password": "encrypted-password",
+  "maxRoom": 10,
+  "maxVoters": 100
+}
+```
+
+### 1. Admin Login
+```bash
+# Login to get JWT token
+POST /auth/login
+{
+  "username": "admin1",
+  "password": "encrypted-password"
+}
+
+# Response includes token
+{
+  "token": "eyJhbGci...",
+  "admin": {
+    "id": "uuid",
+    "username": "admin1",
+    "maxRoom": 10,
+    "maxVoters": 100
+  }
+}
+
+# Check quota
+GET /admin/quota
+Authorization: Bearer <token>
+```
+
+### 2. Create Custom Tickets Election
 ```bash
 # 1. Create room
 POST /admin/rooms
@@ -386,7 +601,7 @@ POST /vote
 }
 ```
 
-### 2. Create Wild Limited Election
+### 3. Create Wild Limited Election
 ```bash
 # 1. Create room with vote limit
 POST /admin/rooms
@@ -403,7 +618,7 @@ POST /admin/rooms
 # 4. Session closes automatically
 ```
 
-### 3. Monitor Real-time Results
+### 4. Monitor Real-time Results
 ```bash
 # While voting is active
 GET /admin/rooms/{room_id}/realtime

@@ -38,6 +38,7 @@ const (
 // Room represents an election/voting room
 type Room struct {
 	ID               string       `json:"id"`
+	AdminID          string       `json:"admin_id"` // Owner of this room
 	Name             string       `json:"name"`
 	VotersType       VotersType   `json:"voters_type"`
 	VotersLimit      *int         `json:"voters_limit,omitempty"`
@@ -96,6 +97,7 @@ type RoomRepository interface {
 	Delete(id string) error
 	List(filters RoomFilters) ([]*Room, error)
 	UpdateSessionState(roomID string, state SessionState) error
+	CountByAdminID(adminID string) (int, error)
 }
 
 // RoomFilters defines filters for listing rooms

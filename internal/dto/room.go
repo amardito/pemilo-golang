@@ -11,6 +11,7 @@ type CreateRoomRequest struct {
 	SessionEndTime   *time.Time `json:"session_end_time,omitempty"`
 	Status           string     `json:"status" binding:"required,oneof=enabled disabled"`
 	PublishState     string     `json:"publish_state" binding:"required,oneof=draft published"`
+	// AdminID will be extracted from JWT token, not from request
 }
 
 // UpdateRoomRequest represents the request to update a room
@@ -27,6 +28,7 @@ type UpdateRoomRequest struct {
 // RoomResponse represents the room response
 type RoomResponse struct {
 	ID               string     `json:"id"`
+	AdminID          string     `json:"admin_id"`
 	Name             string     `json:"name"`
 	VotersType       string     `json:"voters_type"`
 	VotersLimit      *int       `json:"voters_limit,omitempty"`

@@ -11,8 +11,11 @@ type Config struct {
 	ServerPort     string
 	DatabaseURL    string
 	JWTSecret      string
+	EncryptionKey  string
 	Environment    string
 	AllowedOrigins string
+	OwnerUsername  string
+	OwnerPassword  string
 }
 
 func Load() (*Config, error) {
@@ -23,13 +26,19 @@ func Load() (*Config, error) {
 		ServerPort:     getEnv("SERVER_PORT", "8080"),
 		DatabaseURL:    getEnv("DATABASE_URL", ""),
 		JWTSecret:      getEnv("JWT_SECRET", "change-this-secret-in-production"),
+		EncryptionKey:  getEnv("ENCRYPTION_KEY", ""),
 		Environment:    getEnv("ENVIRONMENT", "development"),
 		AllowedOrigins: getEnv("ALLOWED_ORIGINS", "*"),
+		OwnerUsername:  getEnv("OWNER_USERNAME", "owner"),
+		OwnerPassword:  getEnv("OWNER_PASSWORD", "change-this-password"),
 	}
 
 	// Validate required fields
 	if config.DatabaseURL == "" {
 		return nil, fmt.Errorf("DATABASE_URL is required")
+	}
+	if config.EncryptionKey == "" || len(config.EncryptionKey) != 32 {
+		return nil, fmt.Errorf("ENCRYPTION_KEY must be exactly 32 characters for AES-256")
 	}
 
 	return config, nil

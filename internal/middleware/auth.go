@@ -45,8 +45,8 @@ func AuthMiddleware(jwtSecret string) gin.HandlerFunc {
 
 		// Extract claims
 		if claims, ok := token.Claims.(jwt.MapClaims); ok {
-			c.Set("user_id", claims["user_id"])
-			c.Set("role", claims["role"])
+			c.Set("admin_id", claims["admin_id"])
+			c.Set("username", claims["username"])
 		}
 
 		c.Next()

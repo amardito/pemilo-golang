@@ -34,4 +34,14 @@ var (
 	// General errors
 	ErrUnauthorized = errors.New("unauthorized access")
 	ErrForbidden    = errors.New("forbidden")
+
+	// Admin/Auth errors
+	ErrAdminNotFound      = errors.New("admin not found")
+	ErrInvalidCredentials = errors.New("invalid username or password")
+	ErrAdminExists        = errors.New("admin with this username already exists")
+	ErrRateLimitExceeded  = errors.New("too many failed login attempts, please try again later")
+	ErrQuotaExceeded      = errors.New("quota exceeded")
+	ErrMaxRoomExceeded    = errors.New("maximum room limit exceeded for this admin")
+	ErrMaxVotersExceeded  = errors.New("maximum voters limit exceeded for this admin")
+	ErrAdminInactive      = errors.New("admin account is inactive")
 )

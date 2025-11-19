@@ -21,6 +21,13 @@ func NewRoomHandler(roomUsecase *usecase.RoomUsecase) *RoomHandler {
 
 // CreateRoom creates a new election room
 func (h *RoomHandler) CreateRoom(c *gin.Context) {
+	// Get admin ID from JWT context
+	adminID, exists := c.Get("admin_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, dto.ErrorResponse{Error: "Admin ID not found in context"})
+		return
+	}
+
 	var req dto.CreateRoomRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: err.Error()})
@@ -28,6 +35,7 @@ func (h *RoomHandler) CreateRoom(c *gin.Context) {
 	}
 
 	room, err := h.roomUsecase.CreateRoom(
+		adminID.(string),
 		req.Name,
 		domain.VotersType(req.VotersType),
 		req.VotersLimit,
@@ -161,6 +169,7 @@ func (h *RoomHandler) ListRooms(c *gin.Context) {
 func toRoomResponse(room *domain.Room) *dto.RoomResponse {
 	return &dto.RoomResponse{
 		ID:               room.ID,
+		AdminID:          room.AdminID,
 		Name:             room.Name,
 		VotersType:       string(room.VotersType),
 		VotersLimit:      room.VotersLimit,
