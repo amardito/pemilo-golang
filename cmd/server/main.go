@@ -128,7 +128,6 @@ func setupRouter(
 			admin.GET("/quota", adminHandler.GetAdminQuota)
 
 			// Room management
-			// Room management
 			rooms := admin.Group("/rooms")
 			{
 				rooms.POST("", roomHandler.CreateRoom)
@@ -137,8 +136,8 @@ func setupRouter(
 				rooms.PUT("/:id", roomHandler.UpdateRoom)
 				rooms.DELETE("/:id", roomHandler.DeleteRoom)
 
-				// Realtime monitoring
-				rooms.GET("/:roomId/realtime", votingHandler.GetRealtimeVoteData)
+				// Realtime monitoring (must use same parameter name)
+				rooms.GET("/:id/realtime", votingHandler.GetRealtimeVoteData)
 			}
 
 			// Candidate management
