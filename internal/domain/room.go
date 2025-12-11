@@ -95,6 +95,7 @@ type RoomRepository interface {
 	GetByID(id string) (*Room, error)
 	Update(room *Room) error
 	Delete(id string) error
+	BulkDelete(ids []string) error
 	List(filters RoomFilters) ([]*Room, error)
 	UpdateSessionState(roomID string, state SessionState) error
 	CountByAdminID(adminID string) (int, error)

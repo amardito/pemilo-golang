@@ -71,6 +71,16 @@ func (r *roomRepository) Delete(id string) error {
 	return err
 }
 
+func (r *roomRepository) BulkDelete(ids []string) error {
+	if len(ids) == 0 {
+		return nil
+	}
+
+	query := `DELETE FROM rooms WHERE id = ANY($1)`
+	_, err := r.db.Exec(query, ids)
+	return err
+}
+
 func (r *roomRepository) List(filters domain.RoomFilters) ([]*domain.Room, error) {
 	query := `
 		SELECT id, admin_id, name, voters_type, voters_limit, session_start_time, session_end_time, status, publish_state, session_state, created_at, updated_at

@@ -305,9 +305,35 @@ Authorization: Bearer {{admin_token}}
 
 ---
 
+### 9. Bulk Delete Rooms
+```http
+### Bulk Delete Rooms
+DELETE http://localhost:8080/api/v1/admin/rooms
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "ids": [
+    "room-id-1",
+    "room-id-2",
+    "room-id-3"
+  ]
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Rooms deleted successfully"
+}
+```
+
+---
+
 ## 👥 Candidate Management Endpoints
 
-### 9. Create Candidate
+### 10. Create Candidate
 ```http
 ### Create Candidate
 POST http://localhost:8080/api/v1/admin/candidates
@@ -938,6 +964,7 @@ Or use online CryptoJS encoder with your `ENCRYPTION_KEY`.
 - Get: `GET /api/v1/admin/rooms/:id` (JWT)
 - Update: `PUT /api/v1/admin/rooms/:id` (JWT)
 - Delete: `DELETE /api/v1/admin/rooms/:id` (JWT)
+- Bulk Delete: `DELETE /api/v1/admin/rooms` (JWT)
 
 ### Candidates
 - Create: `POST /api/v1/admin/candidates` (JWT)

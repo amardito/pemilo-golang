@@ -32,6 +32,7 @@ var (
 	ErrInvalidVote       = errors.New("invalid vote data")
 
 	// General errors
+	ErrInvalidInput = errors.New("invalid input provided")
 	ErrUnauthorized = errors.New("unauthorized access")
 	ErrForbidden    = errors.New("forbidden")
 

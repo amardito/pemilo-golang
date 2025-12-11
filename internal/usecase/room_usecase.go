@@ -94,6 +94,13 @@ func (u *RoomUsecase) DeleteRoom(id string) error {
 	return u.roomRepo.Delete(id)
 }
 
+func (u *RoomUsecase) BulkDeleteRooms(ids []string) error {
+	if len(ids) == 0 {
+		return domain.ErrInvalidInput
+	}
+	return u.roomRepo.BulkDelete(ids)
+}
+
 func (u *RoomUsecase) ListRooms(filters domain.RoomFilters) ([]*domain.Room, error) {
 	return u.roomRepo.List(filters)
 }

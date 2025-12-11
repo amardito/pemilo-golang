@@ -48,6 +48,11 @@ type ListRoomsRequest struct {
 	SessionState *string `form:"session_state"`
 }
 
+// BulkDeleteRoomRequest represents the request to delete multiple rooms
+type BulkDeleteRoomRequest struct {
+	IDs []string `json:"ids" binding:"required,min=1"`
+}
+
 // ListRoomsResponse represents the list of rooms
 type ListRoomsResponse struct {
 	Rooms []*RoomResponse `json:"rooms"`

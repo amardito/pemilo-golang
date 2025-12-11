@@ -142,6 +142,7 @@ func setupRouter(
 				rooms.GET("/:id", roomHandler.GetRoom)
 				rooms.PUT("/:id", roomHandler.UpdateRoom)
 				rooms.DELETE("/:id", roomHandler.DeleteRoom)
+				rooms.DELETE("", roomHandler.BulkDeleteRooms)
 
 				// Realtime monitoring (must use same parameter name)
 				rooms.GET("/:id/realtime", votingHandler.GetRealtimeVoteData)

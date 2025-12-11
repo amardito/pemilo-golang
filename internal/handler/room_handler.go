@@ -127,6 +127,27 @@ func (h *RoomHandler) DeleteRoom(c *gin.Context) {
 	c.JSON(http.StatusOK, dto.SuccessResponse{Success: true, Message: "Room deleted successfully"})
 }
 
+// BulkDeleteRooms deletes multiple rooms
+func (h *RoomHandler) BulkDeleteRooms(c *gin.Context) {
+	var req dto.BulkDeleteRoomRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	if len(req.IDs) == 0 {
+		c.JSON(http.StatusBadRequest, dto.ErrorResponse{Error: "Room IDs cannot be empty"})
+		return
+	}
+
+	if err := h.roomUsecase.BulkDeleteRooms(req.IDs); err != nil {
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.SuccessResponse{Success: true, Message: "Rooms deleted successfully"})
+}
+
 // ListRooms lists all rooms with optional filters
 func (h *RoomHandler) ListRooms(c *gin.Context) {
 	var req dto.ListRoomsRequest
