@@ -34,7 +34,7 @@ vet: ## Run go vet
 
 lint: fmt vet ## Run linters
 
-dev: ## Run in development mode with hot reload (requires air)
+dev: ## Run in development mode with auto-reload (requires air: go install github.com/air-verse/air@latest)
 	air
 
 docker-build: ## Build Docker image

@@ -9,39 +9,45 @@ import (
 )
 
 type AdminUsecase struct {
-	adminRepo     domain.AdminRepository
-	roomRepo      domain.RoomRepository
-	encryptionKey string
+	adminRepo           domain.AdminRepository
+	roomRepo            domain.RoomRepository
+	encryptionKey       string
+	encryptionSaltFront string
+	encryptionSaltBack  string
 }
 
 func NewAdminUsecase(
 	adminRepo domain.AdminRepository,
 	roomRepo domain.RoomRepository,
 	encryptionKey string,
+	encryptionSaltFront string,
+	encryptionSaltBack string,
 ) *AdminUsecase {
 	return &AdminUsecase{
-		adminRepo:     adminRepo,
-		roomRepo:      roomRepo,
-		encryptionKey: encryptionKey,
+		adminRepo:           adminRepo,
+		roomRepo:            roomRepo,
+		encryptionKey:       encryptionKey,
+		encryptionSaltFront: encryptionSaltFront,
+		encryptionSaltBack:  encryptionSaltBack,
 	}
 }
 
-// CreateAdmin creates new admin with encrypted password (Basic Auth protected endpoint)
-func (u *AdminUsecase) CreateAdmin(username, encryptedPassword string, maxRoom, maxVoters int) (*domain.Admin, error) {
+// CreateAdmin creates new admin with plain password (Basic Auth protected endpoint)
+func (u *AdminUsecase) CreateAdmin(username, plainPassword string, maxRoom, maxVoters int) (*domain.Admin, error) {
 	// Check if admin already exists
 	existing, err := u.adminRepo.GetByUsername(username)
 	if err == nil && existing != nil {
 		return nil, domain.ErrAdminExists
 	}
 
-	// Decrypt password from request
-	plainPassword, err := utils.DecryptPassword(encryptedPassword, u.encryptionKey)
+	// Encrypt password first (matching frontend encryption flow)
+	encryptedPassword, err := utils.EncryptPassword(plainPassword, u.encryptionKey, u.encryptionSaltFront, u.encryptionSaltBack)
 	if err != nil {
 		return nil, err
 	}
 
-	// Hash password for storage
-	hashedPassword, err := utils.HashPassword(plainPassword)
+	// Then hash the encrypted password for storage
+	hashedPassword, err := utils.HashPassword(encryptedPassword)
 	if err != nil {
 		return nil, err
 	}

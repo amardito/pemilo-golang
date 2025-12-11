@@ -59,13 +59,6 @@ func (u *AuthUsecase) Login(username, encryptedPassword string) (*domain.Admin, 
 		}
 	}
 
-	// Decrypt password from frontend
-	plainPassword, err := utils.DecryptPassword(encryptedPassword, u.encryptionKey)
-	if err != nil {
-		u.recordLoginAttempt(username, false)
-		return nil, "", time.Time{}, domain.ErrInvalidCredentials
-	}
-
 	// Get admin by username
 	admin, err := u.adminRepo.GetByUsername(username)
 	if err != nil {
@@ -83,7 +76,7 @@ func (u *AuthUsecase) Login(username, encryptedPassword string) (*domain.Admin, 
 	}
 
 	// Verify password (bcrypt hash comparison)
-	if err := utils.VerifyPassword(admin.Password, plainPassword); err != nil {
+	if err := utils.VerifyPassword(admin.Password, encryptedPassword); err != nil {
 		u.recordLoginAttempt(username, false)
 		return nil, "", time.Time{}, domain.ErrInvalidCredentials
 	}

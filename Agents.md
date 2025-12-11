@@ -5,6 +5,38 @@ GitHub Copilot must use this file to generate consistent, secure, and correct ba
 
 ---
 
+# 🧠 Copilot Agent Purpose
+
+The agent assists development by:
+- Generating backend code in Go
+- Creating PostgreSQL queries and schema migrations
+- Designing API endpoints
+- Maintaining project consistency across services
+- Helping build room creation logic, candidate management, voter flows, authentication tokens, and quota systems
+- Always generating idiomatic, clean Golang code
+- Including error handling and context.Context
+- Using dependency injection
+- Following hexagonal or clean architecture
+- Providing SQL migrations and queries
+- Avoiding placeholder logic; producing complete working code
+- Offering improvements and alternatives when useful
+
+---
+
+# 🏗 Technology Stack
+
+- **Language**: Golang (Go 1.21+)
+- **Framework**: Gin (selected)
+- **Database**: PostgreSQL 15+
+- **Driver**: pgx (PostgreSQL driver)
+- **Migrations**: Manual SQL migrations
+- **Authentication**: JWT (golang-jwt/jwt/v5)
+- **Password Security**: AES-256 encryption + bcrypt hashing
+- **Live Reload**: Air (development)
+- **Containerization**: Docker + Docker Compose
+
+---
+
 # 📌 System Overview
 
 `pemilo-golang` is a backend API for an online election/voting system consisting of:
@@ -148,19 +180,28 @@ or
 3. Backend hashes decrypted password with bcrypt (cost 10)
 4. Bcrypt hash stored in database
 
+**Deterministic Salt Configuration:**
+- System uses environment-based salt (not random) for consistent encryption
+- `ENCRYPTION_SALT_FRONT` + `ENCRYPTION_SALT_BACK` combined to create 8-byte salt
+- Same plaintext + same salt = same ciphertext (needed for admin creation)
+- Final security layer: bcrypt with random salt on top of encrypted password
+
 **Validation Flow:**
 1. Login receives AES-encrypted password
-2. Backend decrypts to plaintext
+2. Backend decrypts to plaintext using deterministic salt
 3. Compares plaintext against bcrypt hash with `bcrypt.CompareHashAndPassword`
 
 **Key Requirements:**
 - `ENCRYPTION_KEY` must be exactly 32 bytes (256 bits)
-- Frontend and backend must share same encryption key
+- `ENCRYPTION_SALT_FRONT` and `ENCRYPTION_SALT_BACK` must match between frontend and backend
+- Frontend and backend must share same encryption key and salt values
 - JWT secret separate from encryption key
 
 **Environment Variables Required:**
 ```env
 ENCRYPTION_KEY=your-32-character-encryption-key  # Exactly 32 chars
+ENCRYPTION_SALT_FRONT=frontSalt1234              # Must match frontend
+ENCRYPTION_SALT_BACK=backSalt5678                # Must match frontend
 JWT_SECRET=your-super-secret-jwt-key-change-this
 OWNER_USERNAME=owner
 OWNER_PASSWORD=change-this-password-immediately
@@ -184,6 +225,7 @@ Base room fields:
   (start_time, end_time — required for wild_unlimited)
 - `status` (enabled/disabled)
 - `publish_state` (draft/published)
+- `session_state` (open/closed) - auto-managed by backend
 
 **Quota Validation on Creation:**
 - Check `admin.current_room_count < admin.max_room`
@@ -501,11 +543,80 @@ CREATE INDEX idx_login_attempts_identifier_success ON login_attempts(identifier,
 
 **rooms (updated):**
 ```sql
-ALTER TABLE rooms ADD COLUMN admin_id VARCHAR(36);
-ALTER TABLE rooms ADD CONSTRAINT fk_rooms_admin_id 
-    FOREIGN KEY (admin_id) REFERENCES admins(id) ON DELETE CASCADE;
+CREATE TABLE rooms (
+    id VARCHAR(36) PRIMARY KEY,
+    admin_id VARCHAR(36),
+    name VARCHAR(255) NOT NULL,
+    voters_type VARCHAR(50) NOT NULL CHECK (voters_type IN ('custom_tickets', 'wild_limited', 'wild_unlimited')),
+    voters_limit INTEGER,
+    session_start_time TIMESTAMP,
+    session_end_time TIMESTAMP,
+    status VARCHAR(20) NOT NULL CHECK (status IN ('enabled', 'disabled')),
+    publish_state VARCHAR(20) NOT NULL CHECK (publish_state IN ('draft', 'published')),
+    session_state VARCHAR(20) NOT NULL DEFAULT 'open' CHECK (session_state IN ('open', 'closed')),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (admin_id) REFERENCES admins(id) ON DELETE CASCADE
+);
 CREATE INDEX idx_rooms_admin_id ON rooms(admin_id);
+CREATE INDEX idx_rooms_voters_type ON rooms(voters_type);
+CREATE INDEX idx_rooms_status ON rooms(status);
+CREATE INDEX idx_rooms_publish_state ON rooms(publish_state);
+CREATE INDEX idx_rooms_session_state ON rooms(session_state);
 ```
+
+**Enum Types:**
+- `voters_type`: custom_tickets | wild_limited | wild_unlimited
+- `status`: enabled | disabled
+- `publish_state`: draft | published
+- `session_state`: open | closed (auto-managed, closes when voting ends)
+
+---
+
+# 📁 Recommended Project Structure
+
+The current implementation follows this structure:
+
+```
+/cmd/server              # Application entrypoint
+/internal/
+    /domain              # Entities and interfaces
+    /usecase             # Business logic
+    /repository          # Database implementation
+    /handler             # HTTP controllers
+    /dto                 # Request/response models
+    /middleware          # JWT/Basic auth/logging
+    /config              # Environment & config
+/pkg/utils               # Shared utilities (crypto, etc.)
+/migrations              # SQL migration files
+/tmp                     # Air build artifacts (gitignored)
+.air.toml                # Air configuration
+docker-compose.yml       # PostgreSQL orchestration
+Makefile                 # Build and dev commands
+```
+
+**Key Principles:**
+- Clean Architecture: handler → usecase → domain → repository → db
+- No circular dependencies
+- Domain layer has no external dependencies
+- All business logic in usecases
+- Handlers only parse requests and format responses
+
+---
+
+# ✅ Copilot Usage Instructions
+
+When generating code for this project:
+- Generate only production-ready code
+- Avoid pseudocode
+- Follow Golang best practices
+- Always include proper error handling
+- Use the existing project structure
+- Respect Clean Architecture boundaries
+- Include context.Context for database operations
+- Add appropriate logging where needed
+- Suggest improvements when applicable
+- Ensure type safety and null handling
 
 ---
 

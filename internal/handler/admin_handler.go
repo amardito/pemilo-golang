@@ -28,7 +28,7 @@ func (h *AdminHandler) CreateAdmin(c *gin.Context) {
 
 	admin, err := h.adminUsecase.CreateAdmin(
 		req.Username,
-		req.EncryptedPassword,
+		req.Password,
 		req.MaxRoom,
 		req.MaxVoters,
 	)

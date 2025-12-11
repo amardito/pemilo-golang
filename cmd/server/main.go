@@ -49,7 +49,7 @@ func main() {
 	ticketUsecase := usecase.NewTicketUsecase(ticketRepo, roomRepo)
 	votingUsecase := usecase.NewVotingUsecase(voteRepo, roomRepo, candidateRepo, ticketRepo)
 	authUsecase := usecase.NewAuthUsecase(adminRepo, loginAttemptRepo, cfg.JWTSecret, cfg.EncryptionKey)
-	adminUsecase := usecase.NewAdminUsecase(adminRepo, roomRepo, cfg.EncryptionKey)
+	adminUsecase := usecase.NewAdminUsecase(adminRepo, roomRepo, cfg.EncryptionKey, cfg.EncryptionSaltFront, cfg.EncryptionSaltBack)
 
 	// Initialize handlers
 	roomHandler := handler.NewRoomHandler(roomUsecase)

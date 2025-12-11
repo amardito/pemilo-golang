@@ -1,0 +1,967 @@
+# Pemilo Golang API - REST Client Documentation
+
+Complete API testing file for REST Client extension (VS Code)
+
+---
+
+## 📌 Setup
+
+### Environment Variables
+Create a `.env` file in the root directory:
+
+```env
+SERVER_PORT=8080
+DATABASE_URL=postgres://pemilo_user:pemilo_pass@localhost:5432/pemilo?sslmode=disable
+JWT_SECRET=pemilo-jwt-secret-key-change-in-prod
+ENCRYPTION_KEY=yV9!pZt8@Q1mH!s4Xj^2bGkEw&uLrN0C
+ENCRYPTION_SALT_FRONT=frontSalt1234
+ENCRYPTION_SALT_BACK=backSalt5678
+OWNER_USERNAME=owner
+OWNER_PASSWORD=owner-password-change-this-now
+ALLOWED_ORIGINS=*
+```
+
+### Start Services
+```bash
+# Start PostgreSQL
+docker-compose up -d postgres
+
+# Start server with auto-reload
+air
+```
+
+---
+
+## 🔐 Authentication Endpoints
+
+### 1. Admin Login
+```http
+### Login as Admin
+POST http://localhost:8080/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "username": "admin_user",
+  "encrypted_password": "U2FsdGVkX19qRt76shpjN6oJ+nvufFlmQgAA9Md7QkI="
+}
+```
+
+**Response:**
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "expires_at": "2024-01-02T00:00:00Z",
+  "admin": {
+    "id": "uuid-here",
+    "username": "admin_user",
+    "max_room": 10,
+    "max_voters": 100,
+    "is_active": true
+  }
+}
+```
+
+**Error Responses:**
+- 401: Invalid credentials
+- 429: Too many failed attempts (rate limited for 5 minutes)
+
+---
+
+### 2. Create Admin (Owner Only)
+```http
+### Create New Admin Account
+POST http://localhost:8080/api/v1/owner/create-admin
+Authorization: Basic owner:owner-password-change-this-now
+Content-Type: application/json
+
+{
+  "username": "new_admin",
+  "password": "SecurePassword123",
+  "max_room": 10,
+  "max_voters": 100
+}
+```
+
+**Response:**
+```json
+{
+  "id": "uuid-here",
+  "username": "new_admin",
+  "max_room": 10,
+  "max_voters": 100,
+  "is_active": true,
+  "created_at": "2024-01-01T00:00:00Z"
+}
+```
+
+**Notes:**
+- Uses HTTP Basic Auth (not JWT)
+- Password sent as plain text (protected by Basic Auth)
+- Owner credentials from `.env` file
+
+---
+
+### 3. Get Admin Quota Info
+```http
+### Get Admin Quota Usage
+GET http://localhost:8080/api/v1/admin/quota
+Authorization: Bearer {{admin_token}}
+```
+
+**Response:**
+```json
+{
+  "admin": {
+    "id": "uuid-here",
+    "username": "admin_user",
+    "max_room": 10,
+    "max_voters": 100,
+    "is_active": true
+  },
+  "current_rooms": 3,
+  "current_voters": 45,
+  "room_limit": 10,
+  "voters_limit": 100
+}
+```
+
+---
+
+## 🏛 Room Management Endpoints
+
+### 4. Create Room
+```http
+### Create Custom Tickets Room
+POST http://localhost:8080/api/v1/admin/rooms
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "name": "Presidential Election 2024",
+  "voters_type": "custom_tickets",
+  "status": "enabled",
+  "publish_state": "draft"
+}
+
+###
+
+### Create Wild Limited Room
+POST http://localhost:8080/api/v1/admin/rooms
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "name": "Student Council Election",
+  "voters_type": "wild_limited",
+  "voters_limit": 500,
+  "status": "enabled",
+  "publish_state": "draft"
+}
+
+###
+
+### Create Wild Unlimited Room
+POST http://localhost:8080/api/v1/admin/rooms
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "name": "Community Poll",
+  "voters_type": "wild_unlimited",
+  "session_start_time": "2024-12-15T08:00:00Z",
+  "session_end_time": "2024-12-15T18:00:00Z",
+  "status": "enabled",
+  "publish_state": "draft"
+}
+```
+
+**Response:**
+```json
+{
+  "id": "room-uuid",
+  "admin_id": "admin-uuid",
+  "name": "Presidential Election 2024",
+  "voters_type": "custom_tickets",
+  "voters_limit": null,
+  "session_start_time": null,
+  "session_end_time": null,
+  "status": "enabled",
+  "publish_state": "draft",
+  "session_state": "open",
+  "created_at": "2024-01-01T00:00:00Z",
+  "updated_at": "2024-01-01T00:00:00Z"
+}
+```
+
+**Error Responses:**
+- 403: Room quota exceeded or Voters quota exceeded
+- 400: Validation error (missing required fields)
+
+---
+
+### 5. List Rooms
+```http
+### List All Rooms for Admin
+GET http://localhost:8080/api/v1/admin/rooms
+Authorization: Bearer {{admin_token}}
+
+###
+
+### List Rooms with Filters
+GET http://localhost:8080/api/v1/admin/rooms?status=enabled&publish_state=published
+Authorization: Bearer {{admin_token}}
+
+###
+
+### List Open Sessions
+GET http://localhost:8080/api/v1/admin/rooms?session_state=open
+Authorization: Bearer {{admin_token}}
+```
+
+**Response:**
+```json
+{
+  "rooms": [
+    {
+      "id": "room-uuid",
+      "admin_id": "admin-uuid",
+      "name": "Presidential Election 2024",
+      "voters_type": "custom_tickets",
+      "status": "enabled",
+      "publish_state": "published",
+      "session_state": "open",
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    }
+  ]
+}
+```
+
+---
+
+### 6. Get Room Details
+```http
+### Get Single Room
+GET http://localhost:8080/api/v1/admin/rooms/{{room_id}}
+Authorization: Bearer {{admin_token}}
+```
+
+**Response:** Same as Create Room response
+
+---
+
+### 7. Update Room
+```http
+### Update Room Status
+PUT http://localhost:8080/api/v1/admin/rooms/{{room_id}}
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "status": "disabled"
+}
+
+###
+
+### Publish Room
+PUT http://localhost:8080/api/v1/admin/rooms/{{room_id}}
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "publish_state": "published"
+}
+
+###
+
+### Update Room Name and Limit
+PUT http://localhost:8080/api/v1/admin/rooms/{{room_id}}
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "name": "Updated Election Name",
+  "voters_limit": 1000
+}
+```
+
+**Response:** Updated room object
+
+---
+
+### 8. Delete Room
+```http
+### Delete Room
+DELETE http://localhost:8080/api/v1/admin/rooms/{{room_id}}
+Authorization: Bearer {{admin_token}}
+```
+
+**Response:**
+```json
+{
+  "message": "Room deleted successfully"
+}
+```
+
+---
+
+## 👥 Candidate Management Endpoints
+
+### 9. Create Candidate
+```http
+### Create Candidate
+POST http://localhost:8080/api/v1/admin/candidates
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "room_id": "{{room_id}}",
+  "name": "John Doe",
+  "photo_url": "https://example.com/photos/john-doe.jpg",
+  "description": "Experienced leader with 10 years in public service"
+}
+```
+
+**Response:**
+```json
+{
+  "id": "candidate-uuid",
+  "room_id": "room-uuid",
+  "name": "John Doe",
+  "photo_url": "https://example.com/photos/john-doe.jpg",
+  "description": "Experienced leader with 10 years in public service",
+  "sub_candidates": [],
+  "created_at": "2024-01-01T00:00:00Z",
+  "updated_at": "2024-01-01T00:00:00Z"
+}
+```
+
+---
+
+### 10. Create Sub-Candidate
+```http
+### Create Sub-Candidate (Running Mate)
+POST http://localhost:8080/api/v1/admin/candidates
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "room_id": "{{room_id}}",
+  "name": "Jane Smith",
+  "photo_url": "https://example.com/photos/jane-smith.jpg",
+  "description": "Strong advocate for education reform",
+  "sub_candidates": [
+    {
+      "name": "Mike Johnson",
+      "photo_url": "https://example.com/photos/mike-johnson.jpg",
+      "description": "Vice President candidate"
+    }
+  ]
+}
+```
+
+---
+
+### 11. Get Candidate Details
+```http
+### Get Single Candidate
+GET http://localhost:8080/api/v1/admin/candidates/{{candidate_id}}
+Authorization: Bearer {{admin_token}}
+```
+
+**Response:** Same as Create Candidate response with sub_candidates array
+
+---
+
+### 12. List Candidates by Room
+```http
+### List All Candidates for a Room
+GET http://localhost:8080/api/v1/admin/candidates/room/{{room_id}}
+Authorization: Bearer {{admin_token}}
+```
+
+**Response:**
+```json
+{
+  "candidates": [
+    {
+      "id": "candidate-uuid-1",
+      "room_id": "room-uuid",
+      "name": "John Doe",
+      "photo_url": "https://example.com/photos/john-doe.jpg",
+      "description": "Experienced leader",
+      "sub_candidates": [
+        {
+          "id": "sub-candidate-uuid",
+          "candidate_id": "candidate-uuid-1",
+          "name": "Mike Johnson",
+          "photo_url": "https://example.com/photos/mike-johnson.jpg",
+          "description": "Vice President candidate",
+          "created_at": "2024-01-01T00:00:00Z",
+          "updated_at": "2024-01-01T00:00:00Z"
+        }
+      ],
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    }
+  ]
+}
+```
+
+---
+
+### 13. Update Candidate
+```http
+### Update Candidate
+PUT http://localhost:8080/api/v1/admin/candidates/{{candidate_id}}
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "name": "John Doe Jr.",
+  "description": "Updated biography with recent achievements"
+}
+```
+
+**Response:** Updated candidate object
+
+---
+
+### 14. Delete Candidate
+```http
+### Delete Candidate
+DELETE http://localhost:8080/api/v1/admin/candidates/{{candidate_id}}
+Authorization: Bearer {{admin_token}}
+```
+
+**Response:**
+```json
+{
+  "message": "Candidate deleted successfully"
+}
+```
+
+---
+
+## 🎟 Ticket Management Endpoints
+
+### 15. Create Single Ticket
+```http
+### Create Single Ticket
+POST http://localhost:8080/api/v1/admin/tickets
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "room_id": "{{room_id}}",
+  "ticket_code": "ABC123XYZ"
+}
+
+###
+
+### Create Ticket with Auto-Generated Code
+POST http://localhost:8080/api/v1/admin/tickets
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "room_id": "{{room_id}}"
+}
+```
+
+**Response:**
+```json
+{
+  "id": "ticket-uuid",
+  "room_id": "room-uuid",
+  "ticket_code": "ABC123XYZ",
+  "used": false,
+  "used_at": null,
+  "created_at": "2024-01-01T00:00:00Z"
+}
+```
+
+---
+
+### 16. Create Bulk Tickets
+```http
+### Bulk Create Tickets from CSV
+POST http://localhost:8080/api/v1/admin/tickets/bulk
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "room_id": "{{room_id}}",
+  "ticket_codes": [
+    "TICKET001",
+    "TICKET002",
+    "TICKET003",
+    "TICKET004",
+    "TICKET005"
+  ]
+}
+```
+
+**Response:**
+```json
+{
+  "created": 5,
+  "tickets": [
+    {
+      "id": "ticket-uuid-1",
+      "room_id": "room-uuid",
+      "ticket_code": "TICKET001",
+      "used": false,
+      "used_at": null,
+      "created_at": "2024-01-01T00:00:00Z"
+    }
+    // ... more tickets
+  ]
+}
+```
+
+---
+
+### 17. List Tickets for Room
+```http
+### List All Tickets for Room
+GET http://localhost:8080/api/v1/admin/tickets/room/{{room_id}}
+Authorization: Bearer {{admin_token}}
+
+###
+
+### List Unused Tickets
+GET http://localhost:8080/api/v1/admin/tickets/room/{{room_id}}?used=false
+Authorization: Bearer {{admin_token}}
+
+###
+
+### List Used Tickets
+GET http://localhost:8080/api/v1/admin/tickets/room/{{room_id}}?used=true
+Authorization: Bearer {{admin_token}}
+```
+
+**Response:**
+```json
+{
+  "tickets": [
+    {
+      "id": "ticket-uuid",
+      "room_id": "room-uuid",
+      "ticket_code": "ABC123XYZ",
+      "used": false,
+      "used_at": null,
+      "created_at": "2024-01-01T00:00:00Z"
+    }
+  ]
+}
+```
+
+---
+
+### 18. Delete Ticket
+```http
+### Delete Unused Ticket
+DELETE http://localhost:8080/api/v1/admin/tickets/{{ticket_id}}
+Authorization: Bearer {{admin_token}}
+```
+
+**Response:**
+```json
+{
+  "message": "Ticket deleted successfully"
+}
+```
+
+**Note:** Only unused tickets can be deleted
+
+---
+
+## 🗳 Voting Endpoints (Public)
+
+### 19. Get Voter Room Info
+```http
+### Get Room Information for Voting
+GET http://localhost:8080/api/v1/vote?room_id={{room_id}}
+```
+
+**Response:**
+```json
+{
+  "room": {
+    "id": "room-uuid",
+    "name": "Presidential Election 2024",
+    "voters_type": "custom_tickets",
+    "status": "enabled",
+    "publish_state": "published",
+    "session_state": "open"
+  },
+  "candidates": [
+    {
+      "id": "candidate-uuid",
+      "name": "John Doe",
+      "photo_url": "https://example.com/photos/john-doe.jpg",
+      "description": "Experienced leader",
+      "sub_candidates": []
+    }
+  ],
+  "requires_ticket": true,
+  "is_active": true,
+  "message": ""
+}
+```
+
+**Possible Messages:**
+- "Voting session has not started yet"
+- "Voting session has ended"
+- "Voting limit reached"
+- "Room is not published"
+
+---
+
+### 20. Verify Ticket
+```http
+### Verify Ticket Before Voting
+POST http://localhost:8080/api/v1/vote/verify-ticket
+Content-Type: application/json
+
+{
+  "room_id": "{{room_id}}",
+  "ticket_code": "ABC123XYZ"
+}
+```
+
+**Response (Valid):**
+```json
+{
+  "valid": true,
+  "message": "Ticket is valid"
+}
+```
+
+**Response (Invalid):**
+```json
+{
+  "valid": false,
+  "message": "Invalid ticket code"
+}
+```
+
+**Response (Already Used):**
+```json
+{
+  "valid": false,
+  "message": "Ticket has already been used"
+}
+```
+
+---
+
+### 21. Cast Vote
+```http
+### Vote for Candidate (Custom Tickets)
+POST http://localhost:8080/api/v1/vote
+Content-Type: application/json
+
+{
+  "room_id": "{{room_id}}",
+  "candidate_id": "{{candidate_id}}",
+  "ticket_code": "ABC123XYZ"
+}
+
+###
+
+### Vote for Sub-Candidate (Custom Tickets)
+POST http://localhost:8080/api/v1/vote
+Content-Type: application/json
+
+{
+  "room_id": "{{room_id}}",
+  "candidate_id": "{{candidate_id}}",
+  "sub_candidate_id": "{{sub_candidate_id}}",
+  "ticket_code": "ABC123XYZ"
+}
+
+###
+
+### Vote (Wild Limited/Unlimited - No Ticket)
+POST http://localhost:8080/api/v1/vote
+Content-Type: application/json
+
+{
+  "room_id": "{{room_id}}",
+  "candidate_id": "{{candidate_id}}"
+}
+```
+
+**Response:**
+```json
+{
+  "id": "vote-uuid",
+  "room_id": "room-uuid",
+  "candidate_id": "candidate-uuid",
+  "sub_candidate_id": null,
+  "voter_identifier": "hashed-identifier",
+  "created_at": "2024-01-01T00:00:00Z"
+}
+```
+
+**Error Responses:**
+- 400: Invalid ticket, ticket already used, room not active
+- 403: Voting limit reached (wild_limited)
+- 404: Room/candidate not found
+
+---
+
+## 📊 Realtime Monitoring Endpoint
+
+### 22. Get Realtime Vote Data
+```http
+### Get Realtime Vote Statistics
+GET http://localhost:8080/api/v1/admin/rooms/{{room_id}}/realtime
+Authorization: Bearer {{admin_token}}
+```
+
+**Response:**
+```json
+{
+  "room_id": "room-uuid",
+  "room_name": "Presidential Election 2024",
+  "total_votes": 150,
+  "timestamp": ["10:00", "10:05", "10:10", "10:15"],
+  "candidates": {
+    "candidate-uuid-1": {
+      "id": "candidate-uuid-1",
+      "name": "John Doe",
+      "vote_counts": [10, 25, 45, 70]
+    },
+    "candidate-uuid-2": {
+      "id": "candidate-uuid-2",
+      "name": "Jane Smith",
+      "vote_counts": [8, 20, 35, 50]
+    }
+  }
+}
+```
+
+**Usage:**
+- Poll this endpoint every 5-10 seconds for realtime updates
+- Use data to render line chart (timestamp vs vote counts)
+- Only accessible for published and open rooms
+
+---
+
+## 🧪 Testing Workflow Examples
+
+### Complete Admin Workflow
+```http
+### 1. Login as Admin
+@login_endpoint = http://localhost:8080/api/v1/auth/login
+POST {{login_endpoint}}
+Content-Type: application/json
+
+{
+  "username": "admin_user",
+  "encrypted_password": "U2FsdGVkX19qRt76shpjN6oJ+nvufFlmQgAA9Md7QkI="
+}
+
+###
+@admin_token = {{login_response.token}}
+
+### 2. Check Quota
+GET http://localhost:8080/api/v1/admin/quota
+Authorization: Bearer {{admin_token}}
+
+###
+
+### 3. Create Room
+POST http://localhost:8080/api/v1/admin/rooms
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "name": "Test Election",
+  "voters_type": "custom_tickets",
+  "status": "enabled",
+  "publish_state": "draft"
+}
+
+###
+@room_id = {{create_room_response.id}}
+
+### 4. Add Candidates
+POST http://localhost:8080/api/v1/admin/candidates
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "room_id": "{{room_id}}",
+  "name": "Candidate A",
+  "photo_url": "https://example.com/a.jpg",
+  "description": "Description A"
+}
+
+###
+@candidate_id = {{create_candidate_response.id}}
+
+### 5. Create Tickets
+POST http://localhost:8080/api/v1/admin/tickets/bulk
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "room_id": "{{room_id}}",
+  "ticket_codes": ["VOTE001", "VOTE002", "VOTE003"]
+}
+
+###
+
+### 6. Publish Room
+PUT http://localhost:8080/api/v1/admin/rooms/{{room_id}}
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+
+{
+  "publish_state": "published"
+}
+```
+
+---
+
+### Complete Voter Workflow
+```http
+### 1. Get Room Info
+GET http://localhost:8080/api/v1/vote?room_id={{room_id}}
+
+###
+
+### 2. Verify Ticket
+POST http://localhost:8080/api/v1/vote/verify-ticket
+Content-Type: application/json
+
+{
+  "room_id": "{{room_id}}",
+  "ticket_code": "VOTE001"
+}
+
+###
+
+### 3. Cast Vote
+POST http://localhost:8080/api/v1/vote
+Content-Type: application/json
+
+{
+  "room_id": "{{room_id}}",
+  "candidate_id": "{{candidate_id}}",
+  "ticket_code": "VOTE001"
+}
+
+###
+
+### 4. Try to Vote Again (Should Fail)
+POST http://localhost:8080/api/v1/vote
+Content-Type: application/json
+
+{
+  "room_id": "{{room_id}}",
+  "candidate_id": "{{candidate_id}}",
+  "ticket_code": "VOTE001"
+}
+```
+
+---
+
+## 📝 Variables for REST Client
+
+Create a `.vscode/settings.json` file:
+
+```json
+{
+  "rest-client.environmentVariables": {
+    "$shared": {
+      "base_url": "http://localhost:8080/api/v1"
+    },
+    "local": {
+      "admin_token": "your-jwt-token-here",
+      "room_id": "room-uuid-here",
+      "candidate_id": "candidate-uuid-here",
+      "ticket_id": "ticket-uuid-here"
+    }
+  }
+}
+```
+
+---
+
+## 🔑 Password Encryption Helper
+
+Use this JavaScript snippet to generate encrypted passwords for testing:
+
+```javascript
+// Node.js script to encrypt password
+const CryptoJS = require('crypto-js');
+
+const AES_KEY = 'yV9!pZt8@Q1mH!s4Xj^2bGkEw&uLrN0C';
+const password = 'YourPlainPassword123';
+
+const encrypted = CryptoJS.AES.encrypt(password, AES_KEY).toString();
+console.log('Encrypted password:', encrypted);
+```
+
+Or use online CryptoJS encoder with your `ENCRYPTION_KEY`.
+
+---
+
+## ⚠️ Common Error Codes
+
+| Code | Meaning | Common Causes |
+|------|---------|--------------|
+| 400 | Bad Request | Missing required fields, invalid data format |
+| 401 | Unauthorized | Invalid/missing JWT token, wrong credentials |
+| 403 | Forbidden | Quota exceeded, insufficient permissions |
+| 404 | Not Found | Room/candidate/ticket doesn't exist |
+| 429 | Too Many Requests | Rate limit exceeded (login attempts) |
+| 500 | Internal Server Error | Database connection, server error |
+
+---
+
+## 🎯 Quick Reference
+
+### Authentication
+- Login: `POST /api/v1/auth/login`
+- Create Admin: `POST /api/v1/owner/create-admin` (Basic Auth)
+- Get Quota: `GET /api/v1/admin/quota` (JWT)
+
+### Rooms
+- Create: `POST /api/v1/admin/rooms` (JWT)
+- List: `GET /api/v1/admin/rooms` (JWT)
+- Get: `GET /api/v1/admin/rooms/:id` (JWT)
+- Update: `PUT /api/v1/admin/rooms/:id` (JWT)
+- Delete: `DELETE /api/v1/admin/rooms/:id` (JWT)
+
+### Candidates
+- Create: `POST /api/v1/admin/candidates` (JWT)
+- List: `GET /api/v1/admin/candidates/room/:roomId` (JWT)
+- Get: `GET /api/v1/admin/candidates/:id` (JWT)
+- Update: `PUT /api/v1/admin/candidates/:id` (JWT)
+- Delete: `DELETE /api/v1/admin/candidates/:id` (JWT)
+
+### Tickets
+- Create: `POST /api/v1/admin/tickets` (JWT)
+- Bulk: `POST /api/v1/admin/tickets/bulk` (JWT)
+- List: `GET /api/v1/admin/tickets/room/:roomId` (JWT)
+- Delete: `DELETE /api/v1/admin/tickets/:id` (JWT)
+
+### Voting (Public)
+- Get Info: `GET /api/v1/vote?room_id=<id>`
+- Verify: `POST /api/v1/vote/verify-ticket`
+- Vote: `POST /api/v1/vote`
+
+### Monitoring
+- Realtime: `GET /api/v1/admin/rooms/:id/realtime` (JWT)
+
+---
+
+**Extension:** [REST Client by Huachao Mao](https://marketplace.visualstudio.com/items?itemName=humao.rest-client)
+
+**Repository:** https://github.com/amardito/pemilo-golang

@@ -25,11 +25,12 @@ type AdminInfo struct {
 }
 
 // CreateAdminRequest represents request to create a new admin (Basic Auth protected)
+// Password should be sent as plain text (protected by Basic Auth), not encrypted
 type CreateAdminRequest struct {
-	Username          string `json:"username" binding:"required,min=3,max=50"`
-	EncryptedPassword string `json:"encrypted_password" binding:"required"`
-	MaxRoom           int    `json:"max_room" binding:"required,min=1"`
-	MaxVoters         int    `json:"max_voters" binding:"required,min=1"`
+	Username  string `json:"username" binding:"required,min=3,max=50"`
+	Password  string `json:"password" binding:"required,min=8"`
+	MaxRoom   int    `json:"max_room" binding:"required,min=1"`
+	MaxVoters int    `json:"max_voters" binding:"required,min=1"`
 }
 
 // CreateAdminResponse represents admin creation response
