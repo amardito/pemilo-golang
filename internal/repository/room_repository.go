@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/amardito/pemilo-golang/internal/domain"
+	"github.com/lib/pq"
 )
 
 type roomRepository struct {
@@ -77,7 +78,7 @@ func (r *roomRepository) BulkDelete(ids []string) error {
 	}
 
 	query := `DELETE FROM rooms WHERE id = ANY($1)`
-	_, err := r.db.Exec(query, ids)
+	_, err := r.db.Exec(query, pq.Array(ids))
 	return err
 }
 
