@@ -126,3 +126,17 @@ func (u *TicketUsecase) VerifyTicket(roomID, code string) (*domain.Ticket, error
 func (u *TicketUsecase) DeleteTicket(id string) error {
 	return u.ticketRepo.Delete(id)
 }
+
+func (u *TicketUsecase) GetTicketCounts(roomID string) (total int, used int, err error) {
+	total, err = u.ticketRepo.CountByRoomID(roomID)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	used, err = u.ticketRepo.CountUsedByRoomID(roomID)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	return total, used, nil
+}

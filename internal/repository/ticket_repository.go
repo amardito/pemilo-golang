@@ -131,3 +131,23 @@ func (r *ticketRepository) ExistsByCode(roomID string, code string) (bool, error
 	}
 	return count > 0, nil
 }
+
+func (r *ticketRepository) CountByRoomID(roomID string) (int, error) {
+	query := `SELECT COUNT(*) FROM tickets WHERE room_id = $1`
+	var count int
+	err := r.db.QueryRow(query, roomID).Scan(&count)
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+func (r *ticketRepository) CountUsedByRoomID(roomID string) (int, error) {
+	query := `SELECT COUNT(*) FROM tickets WHERE room_id = $1 AND is_used = true`
+	var count int
+	err := r.db.QueryRow(query, roomID).Scan(&count)
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}

@@ -92,6 +92,26 @@ func (h *TicketHandler) DeleteTicket(c *gin.Context) {
 	c.JSON(http.StatusOK, dto.SuccessResponse{Success: true, Message: "Ticket deleted successfully"})
 }
 
+// GetTicketCounts retrieves ticket count statistics for a room
+func (h *TicketHandler) GetTicketCounts(c *gin.Context) {
+	roomID := c.Param("roomId")
+
+	total, used, err := h.ticketUsecase.GetTicketCounts(roomID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, dto.ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	response := &dto.TicketCountResponse{
+		RoomID:      roomID,
+		TotalCount:  total,
+		UsedCount:   used,
+		UnusedCount: total - used,
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
 // Helper function
 func toTicketResponse(ticket *domain.Ticket) *dto.TicketResponse {
 	return &dto.TicketResponse{

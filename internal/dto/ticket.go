@@ -29,3 +29,11 @@ type TicketResponse struct {
 type ListTicketsResponse struct {
 	Tickets []*TicketResponse `json:"tickets"`
 }
+
+// TicketCountResponse represents ticket count information for a room
+type TicketCountResponse struct {
+	RoomID      string `json:"room_id"`
+	TotalCount  int    `json:"total_count"`
+	UsedCount   int    `json:"used_count"`
+	UnusedCount int    `json:"unused_count"`
+}

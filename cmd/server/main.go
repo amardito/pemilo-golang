@@ -164,6 +164,7 @@ func setupRouter(
 				tickets.POST("", ticketHandler.CreateTicket)
 				tickets.POST("/bulk", ticketHandler.CreateTicketsBulk)
 				tickets.GET("/room/:roomId", ticketHandler.ListTicketsByRoom)
+				tickets.GET("/counts/room/:roomId", ticketHandler.GetTicketCounts)
 				tickets.DELETE("/:id", ticketHandler.DeleteTicket)
 			}
 		}

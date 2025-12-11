@@ -22,4 +22,6 @@ type TicketRepository interface {
 	GetByRoomID(roomID string) ([]*Ticket, error)
 	Delete(id string) error
 	ExistsByCode(roomID string, code string) (bool, error)
+	CountByRoomID(roomID string) (int, error)
+	CountUsedByRoomID(roomID string) (int, error)
 }

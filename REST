@@ -593,6 +593,25 @@ Authorization: Bearer {{admin_token}}
 
 ---
 
+### 18. Get Ticket Counts for Room
+```http
+### Get Ticket Counts by Room ID
+GET http://localhost:8080/api/v1/admin/tickets/counts/room/{{room_id}}
+Authorization: Bearer {{admin_token}}
+```
+
+**Response:**
+```json
+{
+  "room_id": "room-uuid-here",
+  "total_count": 100,
+  "used_count": 45,
+  "unused_count": 55
+}
+```
+
+---
+
 ## 🗳 Voting Endpoints (Public)
 
 ### 19. Get Voter Room Info
@@ -967,6 +986,7 @@ Or use online CryptoJS encoder with your `ENCRYPTION_KEY`.
 - Create: `POST /api/v1/admin/tickets` (JWT)
 - Bulk: `POST /api/v1/admin/tickets/bulk` (JWT)
 - List: `GET /api/v1/admin/tickets/room/:roomId` (JWT)
+- Counts: `GET /api/v1/admin/tickets/counts/room/:roomId` (JWT)
 - Delete: `DELETE /api/v1/admin/tickets/:id` (JWT)
 
 ### Voting (Public)
