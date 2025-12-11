@@ -18,8 +18,8 @@ CREATE TABLE IF NOT EXISTS admins (
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_admins_username ON admins(username);
-CREATE INDEX idx_admins_is_active ON admins(is_active);
+CREATE INDEX IF NOT EXISTS idx_admins_username ON admins(username);
+CREATE INDEX IF NOT EXISTS idx_admins_is_active ON admins(is_active);
 
 -- ============================================
 -- 2. LOGIN ATTEMPTS TABLE (for rate limiting)
@@ -31,9 +31,9 @@ CREATE TABLE IF NOT EXISTS login_attempts (
     success BOOLEAN NOT NULL DEFAULT FALSE
 );
 
-CREATE INDEX idx_login_attempts_identifier ON login_attempts(identifier);
-CREATE INDEX idx_login_attempts_attempt_at ON login_attempts(attempt_at);
-CREATE INDEX idx_login_attempts_identifier_success ON login_attempts(identifier, success);
+CREATE INDEX IF NOT EXISTS idx_login_attempts_identifier ON login_attempts(identifier);
+CREATE INDEX IF NOT EXISTS idx_login_attempts_attempt_at ON login_attempts(attempt_at);
+CREATE INDEX IF NOT EXISTS idx_login_attempts_identifier_success ON login_attempts(identifier, success);
 
 -- ============================================
 -- 3. ROOMS TABLE
@@ -54,11 +54,11 @@ CREATE TABLE IF NOT EXISTS rooms (
     FOREIGN KEY (admin_id) REFERENCES admins(id) ON DELETE CASCADE
 );
 
-CREATE INDEX idx_rooms_admin_id ON rooms(admin_id);
-CREATE INDEX idx_rooms_voters_type ON rooms(voters_type);
-CREATE INDEX idx_rooms_status ON rooms(status);
-CREATE INDEX idx_rooms_publish_state ON rooms(publish_state);
-CREATE INDEX idx_rooms_session_state ON rooms(session_state);
+CREATE INDEX IF NOT EXISTS idx_rooms_admin_id ON rooms(admin_id);
+CREATE INDEX IF NOT EXISTS idx_rooms_voters_type ON rooms(voters_type);
+CREATE INDEX IF NOT EXISTS idx_rooms_status ON rooms(status);
+CREATE INDEX IF NOT EXISTS idx_rooms_publish_state ON rooms(publish_state);
+CREATE INDEX IF NOT EXISTS idx_rooms_session_state ON rooms(session_state);
 
 -- ============================================
 -- 4. CANDIDATES TABLE
@@ -74,7 +74,7 @@ CREATE TABLE IF NOT EXISTS candidates (
     FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE
 );
 
-CREATE INDEX idx_candidates_room_id ON candidates(room_id);
+CREATE INDEX IF NOT EXISTS idx_candidates_room_id ON candidates(room_id);
 
 -- ============================================
 -- 5. SUB CANDIDATES TABLE
@@ -90,7 +90,7 @@ CREATE TABLE IF NOT EXISTS sub_candidates (
     FOREIGN KEY (candidate_id) REFERENCES candidates(id) ON DELETE CASCADE
 );
 
-CREATE INDEX idx_sub_candidates_candidate_id ON sub_candidates(candidate_id);
+CREATE INDEX IF NOT EXISTS idx_sub_candidates_candidate_id ON sub_candidates(candidate_id);
 
 -- ============================================
 -- 6. TICKETS TABLE
@@ -107,9 +107,9 @@ CREATE TABLE IF NOT EXISTS tickets (
     UNIQUE (room_id, code)
 );
 
-CREATE INDEX idx_tickets_room_id ON tickets(room_id);
-CREATE INDEX idx_tickets_code ON tickets(code);
-CREATE INDEX idx_tickets_is_used ON tickets(is_used);
+CREATE INDEX IF NOT EXISTS idx_tickets_room_id ON tickets(room_id);
+CREATE INDEX IF NOT EXISTS idx_tickets_code ON tickets(code);
+CREATE INDEX IF NOT EXISTS idx_tickets_is_used ON tickets(is_used);
 
 -- ============================================
 -- 7. VOTES TABLE
@@ -127,10 +127,10 @@ CREATE TABLE IF NOT EXISTS votes (
     UNIQUE (room_id, voter_identifier)
 );
 
-CREATE INDEX idx_votes_room_id ON votes(room_id);
-CREATE INDEX idx_votes_candidate_id ON votes(candidate_id);
-CREATE INDEX idx_votes_voter_identifier ON votes(voter_identifier);
-CREATE INDEX idx_votes_created_at ON votes(created_at);
+CREATE INDEX IF NOT EXISTS idx_votes_room_id ON votes(room_id);
+CREATE INDEX IF NOT EXISTS idx_votes_candidate_id ON votes(candidate_id);
+CREATE INDEX IF NOT EXISTS idx_votes_voter_identifier ON votes(voter_identifier);
+CREATE INDEX IF NOT EXISTS idx_votes_created_at ON votes(created_at);
 
 -- ============================================
 -- SCHEMA CREATION COMPLETE

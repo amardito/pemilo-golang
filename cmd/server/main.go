@@ -10,6 +10,7 @@ import (
 	"github.com/amardito/pemilo-golang/internal/middleware"
 	"github.com/amardito/pemilo-golang/internal/repository"
 	"github.com/amardito/pemilo-golang/internal/usecase"
+	"github.com/amardito/pemilo-golang/pkg/utils"
 	"github.com/gin-gonic/gin"
 	_ "github.com/lib/pq"
 )
@@ -33,6 +34,12 @@ func main() {
 		log.Fatalf("Failed to ping database: %v", err)
 	}
 	log.Println("Connected to database successfully")
+
+	// Run migrations
+	if err := utils.RunMigrations(db, "migrations"); err != nil {
+		log.Fatalf("Failed to run migrations: %v", err)
+	}
+	log.Println("Migrations executed successfully")
 
 	// Initialize repositories
 	roomRepo := repository.NewRoomRepository(db)
