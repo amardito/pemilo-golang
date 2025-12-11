@@ -21,4 +21,5 @@ type TicketRepository interface {
 	MarkAsUsed(id string) error
 	GetByRoomID(roomID string) ([]*Ticket, error)
 	Delete(id string) error
+	ExistsByCode(roomID string, code string) (bool, error)
 }

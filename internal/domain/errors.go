@@ -23,6 +23,7 @@ var (
 	// Ticket errors
 	ErrTicketNotFound    = errors.New("ticket not found")
 	ErrTicketAlreadyUsed = errors.New("ticket has already been used")
+	ErrTicketDuplicate   = errors.New("ticket code already exists in this room")
 	ErrInvalidTicket     = errors.New("invalid ticket code")
 	ErrTicketRequired    = errors.New("ticket code is required for this room")
 

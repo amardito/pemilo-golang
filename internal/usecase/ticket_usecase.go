@@ -30,6 +30,15 @@ func (u *TicketUsecase) CreateTicket(roomID, code string) (*domain.Ticket, error
 		return nil, domain.ErrInvalidVotersType
 	}
 
+	// Check if ticket code already exists in this room
+	exists, err := u.ticketRepo.ExistsByCode(roomID, code)
+	if err != nil {
+		return nil, err
+	}
+	if exists {
+		return nil, domain.ErrTicketDuplicate
+	}
+
 	ticket := &domain.Ticket{
 		ID:        uuid.New().String(),
 		RoomID:    roomID,
@@ -55,6 +64,26 @@ func (u *TicketUsecase) CreateTicketsBulk(roomID string, codes []string) ([]*dom
 
 	if room.VotersType != domain.VotersTypeCustomTickets {
 		return nil, domain.ErrInvalidVotersType
+	}
+
+	// Check for duplicate codes within the request itself
+	seen := make(map[string]bool)
+	for _, code := range codes {
+		if seen[code] {
+			return nil, domain.ErrTicketDuplicate
+		}
+		seen[code] = true
+	}
+
+	// Check if any code already exists in this room
+	for _, code := range codes {
+		exists, err := u.ticketRepo.ExistsByCode(roomID, code)
+		if err != nil {
+			return nil, err
+		}
+		if exists {
+			return nil, domain.ErrTicketDuplicate
+		}
 	}
 
 	tickets := make([]*domain.Ticket, 0, len(codes))

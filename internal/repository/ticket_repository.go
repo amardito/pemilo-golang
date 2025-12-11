@@ -121,3 +121,13 @@ func (r *ticketRepository) Delete(id string) error {
 	_, err := r.db.Exec(query, id)
 	return err
 }
+
+func (r *ticketRepository) ExistsByCode(roomID string, code string) (bool, error) {
+	query := `SELECT COUNT(*) FROM tickets WHERE room_id = $1 AND code = $2`
+	var count int
+	err := r.db.QueryRow(query, roomID, code).Scan(&count)
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
