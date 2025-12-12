@@ -51,10 +51,10 @@ func main() {
 	loginAttemptRepo := repository.NewLoginAttemptRepository(db)
 
 	// Initialize usecases
-	roomUsecase := usecase.NewRoomUsecase(roomRepo)
+	roomUsecase := usecase.NewRoomUsecaseWithAdmin(roomRepo, adminRepo)
 	candidateUsecase := usecase.NewCandidateUsecase(candidateRepo, subCandidateRepo, roomRepo)
-	ticketUsecase := usecase.NewTicketUsecase(ticketRepo, roomRepo)
-	votingUsecase := usecase.NewVotingUsecase(voteRepo, roomRepo, candidateRepo, ticketRepo)
+	ticketUsecase := usecase.NewTicketUsecaseWithAdmin(ticketRepo, roomRepo, adminRepo)
+	votingUsecase := usecase.NewVotingUsecaseWithAdmin(voteRepo, roomRepo, candidateRepo, ticketRepo, adminRepo)
 	authUsecase := usecase.NewAuthUsecase(adminRepo, loginAttemptRepo, cfg.JWTSecret, cfg.EncryptionKey)
 	adminUsecase := usecase.NewAdminUsecase(adminRepo, roomRepo, cfg.EncryptionKey, cfg.EncryptionSaltFront, cfg.EncryptionSaltBack)
 

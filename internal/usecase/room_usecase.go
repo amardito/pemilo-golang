@@ -8,7 +8,8 @@ import (
 )
 
 type RoomUsecase struct {
-	roomRepo domain.RoomRepository
+	roomRepo  domain.RoomRepository
+	adminRepo domain.AdminRepository
 }
 
 func NewRoomUsecase(roomRepo domain.RoomRepository) *RoomUsecase {
@@ -17,7 +18,50 @@ func NewRoomUsecase(roomRepo domain.RoomRepository) *RoomUsecase {
 	}
 }
 
+func NewRoomUsecaseWithAdmin(roomRepo domain.RoomRepository, adminRepo domain.AdminRepository) *RoomUsecase {
+	return &RoomUsecase{
+		roomRepo:  roomRepo,
+		adminRepo: adminRepo,
+	}
+}
+
 func (u *RoomUsecase) CreateRoom(adminID, name string, votersType domain.VotersType, votersLimit *int, sessionStartTime, sessionEndTime *time.Time, status domain.RoomStatus, publishState domain.PublishState) (*domain.Room, error) {
+	// Validate admin quota if adminRepo is available
+	if u.adminRepo != nil {
+		admin, err := u.adminRepo.GetByID(adminID)
+		if err != nil {
+			return nil, err
+		}
+
+		// Check room quota
+		currentRooms, err := u.adminRepo.GetRoomCount(adminID)
+		if err != nil {
+			return nil, err
+		}
+		if currentRooms >= admin.MaxRoom {
+			return nil, domain.ErrMaxRoomExceeded
+		}
+
+		// Check voters quota
+		currentVoters, err := u.adminRepo.GetTotalVotersCount(adminID)
+		if err != nil {
+			return nil, err
+		}
+
+		// Calculate projected voters for new room
+		projectedVoters := currentVoters
+		if votersType == domain.VotersTypeWildLimited && votersLimit != nil {
+			projectedVoters += *votersLimit
+		} else if votersType == domain.VotersTypeCustomTickets {
+			// For custom tickets, we'll allow creation and validate when adding tickets
+			projectedVoters += 0
+		}
+
+		if projectedVoters > admin.MaxVoters {
+			return nil, domain.ErrMaxVotersExceeded
+		}
+	}
+
 	room := &domain.Room{
 		ID:               uuid.New().String(),
 		AdminID:          adminID,

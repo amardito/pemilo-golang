@@ -10,12 +10,21 @@ import (
 type TicketUsecase struct {
 	ticketRepo domain.TicketRepository
 	roomRepo   domain.RoomRepository
+	adminRepo  domain.AdminRepository
 }
 
 func NewTicketUsecase(ticketRepo domain.TicketRepository, roomRepo domain.RoomRepository) *TicketUsecase {
 	return &TicketUsecase{
 		ticketRepo: ticketRepo,
 		roomRepo:   roomRepo,
+	}
+}
+
+func NewTicketUsecaseWithAdmin(ticketRepo domain.TicketRepository, roomRepo domain.RoomRepository, adminRepo domain.AdminRepository) *TicketUsecase {
+	return &TicketUsecase{
+		ticketRepo: ticketRepo,
+		roomRepo:   roomRepo,
+		adminRepo:  adminRepo,
 	}
 }
 
@@ -64,6 +73,25 @@ func (u *TicketUsecase) CreateTicketsBulk(roomID string, codes []string) ([]*dom
 
 	if room.VotersType != domain.VotersTypeCustomTickets {
 		return nil, domain.ErrInvalidVotersType
+	}
+
+	// Validate voters quota if adminRepo is available
+	if u.adminRepo != nil {
+		admin, err := u.adminRepo.GetByID(room.AdminID)
+		if err != nil {
+			return nil, err
+		}
+
+		// Check if adding these tickets would exceed max_voters
+		currentVoters, err := u.adminRepo.GetTotalVotersCount(room.AdminID)
+		if err != nil {
+			return nil, err
+		}
+
+		projectedVoters := currentVoters + len(codes)
+		if projectedVoters > admin.MaxVoters {
+			return nil, domain.ErrMaxVotersExceeded
+		}
 	}
 
 	// Check for duplicate codes within the request itself

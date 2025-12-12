@@ -16,6 +16,7 @@ type VotingUsecase struct {
 	roomRepo      domain.RoomRepository
 	candidateRepo domain.CandidateRepository
 	ticketRepo    domain.TicketRepository
+	adminRepo     domain.AdminRepository
 }
 
 func NewVotingUsecase(
@@ -29,6 +30,22 @@ func NewVotingUsecase(
 		roomRepo:      roomRepo,
 		candidateRepo: candidateRepo,
 		ticketRepo:    ticketRepo,
+	}
+}
+
+func NewVotingUsecaseWithAdmin(
+	voteRepo domain.VoteRepository,
+	roomRepo domain.RoomRepository,
+	candidateRepo domain.CandidateRepository,
+	ticketRepo domain.TicketRepository,
+	adminRepo domain.AdminRepository,
+) *VotingUsecase {
+	return &VotingUsecase{
+		voteRepo:      voteRepo,
+		roomRepo:      roomRepo,
+		candidateRepo: candidateRepo,
+		ticketRepo:    ticketRepo,
+		adminRepo:     adminRepo,
 	}
 }
 
@@ -78,6 +95,24 @@ func (u *VotingUsecase) CastVote(roomID, candidateID string, subCandidateID *str
 	room, err := u.roomRepo.GetByID(roomID)
 	if err != nil {
 		return nil, err
+	}
+
+	// Validate admin quota if adminRepo is available
+	if u.adminRepo != nil {
+		admin, err := u.adminRepo.GetByID(room.AdminID)
+		if err != nil {
+			return nil, err
+		}
+
+		// Check if current votes already reached admin's max voters
+		currentVoters, err := u.adminRepo.GetTotalVotersCount(room.AdminID)
+		if err != nil {
+			return nil, err
+		}
+
+		if currentVoters >= admin.MaxVoters {
+			return nil, domain.ErrMaxVotersExceeded
+		}
 	}
 
 	// Validate room state
