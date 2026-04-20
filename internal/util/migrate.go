@@ -2,6 +2,7 @@ package util
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"io/fs"
 	"log"
@@ -9,10 +10,31 @@ import (
 	"strings"
 
 	"github.com/amard/pemilo-golang/migrations"
+	"github.com/lib/pq"
 )
+
+// pgAlreadyExists reports whether err is a PostgreSQL "already exists" error.
+// Covers: 42P07 duplicate_table, 42710 duplicate_object, 42701 duplicate_column,
+// 42P16 invalid_table_definition (unique index already exists), 42P11 duplicate_cursor.
+func pgAlreadyExists(err error) bool {
+	var pqErr *pq.Error
+	if errors.As(err, &pqErr) {
+		switch pqErr.Code {
+		case "42P07", // duplicate_table
+			"42710", // duplicate_object  (extension, role, …)
+			"42701", // duplicate_column
+			"42P11", // duplicate_cursor
+			"42P16": // duplicate_object (index)
+			return true
+		}
+	}
+	return false
+}
 
 // RunMigrations creates the schema_migrations tracking table (if absent) and
 // applies any unapplied goose-format *.sql migrations in lexicographic order.
+// If a migration fails because the objects already exist (e.g. the DB was
+// previously set up by goose directly) it is recorded as applied and skipped.
 func RunMigrations(db *sql.DB) error {
 	_, err := db.Exec(`
 		CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -63,9 +85,19 @@ func RunMigrations(db *sql.DB) error {
 			return fmt.Errorf("begin tx for %s: %w", fname, err)
 		}
 
-		if _, err := tx.Exec(upSQL); err != nil {
+		if _, execErr := tx.Exec(upSQL); execErr != nil {
 			_ = tx.Rollback()
-			return fmt.Errorf("apply migration %s: %w", fname, err)
+			if pgAlreadyExists(execErr) {
+				// Objects already exist — record as applied so we never retry.
+				if _, recErr := db.Exec(
+					`INSERT INTO schema_migrations (version) VALUES ($1) ON CONFLICT DO NOTHING`, fname,
+				); recErr != nil {
+					return fmt.Errorf("record skipped migration %s: %w", fname, recErr)
+				}
+				log.Printf("[migrate] already exists, marked applied: %s", fname)
+				continue
+			}
+			return fmt.Errorf("apply migration %s: %w", fname, execErr)
 		}
 
 		if _, err := tx.Exec(

@@ -11,10 +11,11 @@ import (
 
 type StatsHandler struct {
 	statsService *service.StatsService
+	jwtSecret    string
 }
 
-func NewStatsHandler(statsService *service.StatsService) *StatsHandler {
-	return &StatsHandler{statsService: statsService}
+func NewStatsHandler(statsService *service.StatsService, jwtSecret string) *StatsHandler {
+	return &StatsHandler{statsService: statsService, jwtSecret: jwtSecret}
 }
 
 // GET /api/events/:eventId/stats

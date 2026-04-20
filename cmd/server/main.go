@@ -65,13 +65,9 @@ func main() {
 	slateHandler := handler.NewSlateHandler(slateService)
 	voterHandler := handler.NewVoterHandler(voterService)
 	votePublicHandler := handler.NewVotePublicHandler(voteService)
-	statsHandler := handler.NewStatsHandler(statsService)
+	statsHandler := handler.NewStatsHandler(statsService, cfg.JWTSecret)
 	paymentHandler := handler.NewPaymentHandler(paymentService)
 	auditLogHandler := handler.NewAuditLogHandler(auditService)
-
-	// Rate limiters
-	votePrepareRL := middleware.NewRateLimiter(20, 5) // 20 req/min, burst 5
-	voteSubmitRL := middleware.NewRateLimiter(20, 1)  // 20 req/min, burst 1
 
 	// Router
 	r := gin.Default()
@@ -132,11 +128,14 @@ func main() {
 			admin.GET("/orders/:orderId", paymentHandler.GetOrder)
 		}
 
+		// Stats WebSocket — auth via ?token= query param (no header possible in WS)
+		api.GET("/events/:eventId/stats/ws", statsHandler.StreamStats)
+
 		// Public voting routes (no auth, rate-limited)
 		public := api.Group("/public")
 		{
-			public.POST("/events/:eventId/vote/prepare", votePrepareRL.Middleware(), votePublicHandler.Prepare)
-			public.POST("/events/:eventId/vote/submit", voteSubmitRL.Middleware(), votePublicHandler.Submit)
+			public.POST("/events/:eventId/vote/prepare", votePublicHandler.Prepare)
+			public.POST("/events/:eventId/vote/submit", votePublicHandler.Submit)
 		}
 
 		// Payment webhook (no auth, verified by signature)
