@@ -1,0 +1,13 @@
+DROP TABLE IF EXISTS orders;
+DROP TABLE IF EXISTS audit_logs;
+DROP TABLE IF EXISTS ballots;
+DROP TABLE IF EXISTS voter_tokens;
+DROP TABLE IF EXISTS voters;
+DROP TABLE IF EXISTS slate_members;
+DROP TABLE IF EXISTS slates;
+DROP TABLE IF EXISTS events;
+
+DROP TYPE IF EXISTS token_status;
+DROP TYPE IF EXISTS voter_status;
+DROP TYPE IF EXISTS ballot_type;
+DROP TYPE IF EXISTS event_status;
