@@ -183,6 +183,7 @@ type VoterDTO struct {
 	HasVoted  bool       `json:"has_voted"`
 	VotedAt   *time.Time `json:"voted_at"`
 	Status    string     `json:"status"`
+	Token     *string    `json:"token,omitempty"`
 }
 
 // ── Payment ──

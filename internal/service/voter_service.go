@@ -120,8 +120,17 @@ func (s *VoterService) List(ctx context.Context, eventID, userID string, params 
 		return nil, err
 	}
 
+	tokenMap, err := s.voterTokenRepo.GetTokenMapByEventID(ctx, eventID)
+	if err != nil {
+		return nil, err
+	}
+
 	voterDTOs := make([]dto.VoterDTO, len(voters))
 	for i, v := range voters {
+		var token *string
+		if t, ok := tokenMap[v.ID]; ok {
+			token = &t
+		}
 		voterDTOs[i] = dto.VoterDTO{
 			ID:        v.ID,
 			FullName:  v.FullName,
@@ -130,6 +139,7 @@ func (s *VoterService) List(ctx context.Context, eventID, userID string, params 
 			HasVoted:  v.HasVoted,
 			VotedAt:   v.VotedAt,
 			Status:    string(v.Status),
+			Token:     token,
 		}
 	}
 

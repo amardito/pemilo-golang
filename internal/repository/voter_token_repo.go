@@ -96,3 +96,25 @@ func (r *VoterTokenRepo) GetTokensForExport(ctx context.Context, eventID string)
 	}
 	return result, rows.Err()
 }
+
+// GetTokenMapByEventID returns a map of voter_id -> token for all ACTIVE tokens in an event.
+func (r *VoterTokenRepo) GetTokenMapByEventID(ctx context.Context, eventID string) (map[string]string, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT voter_id, token FROM voter_tokens WHERE event_id = $1 AND status = 'ACTIVE'`,
+		eventID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	m := make(map[string]string)
+	for rows.Next() {
+		var voterID, token string
+		if err := rows.Scan(&voterID, &token); err != nil {
+			return nil, err
+		}
+		m[voterID] = token
+	}
+	return m, rows.Err()
+}
