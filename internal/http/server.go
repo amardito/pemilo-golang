@@ -27,6 +27,11 @@ import (
 
 const voteSessionTTL = 10 * time.Minute
 
+const (
+	defaultEventMaxVoters     = 1500
+	defaultEventMaxCandidates = 12
+)
+
 type Server struct {
 	logger *slog.Logger
 	db     *pgxpool.Pool
@@ -110,8 +115,8 @@ func (s *Server) handleCreateEvent(w nethttp.ResponseWriter, r *nethttp.Request)
 	var eventID uuid.UUID
 	err := s.db.QueryRow(ctx, `
 		INSERT INTO events (title, description, status, opens_at, closes_at, ballot_type, max_voters, max_candidates)
-		VALUES ($1, $2, $3, $4, $5, 'SECRET', 1500, 12)
-		RETURNING id`, req.Title, req.Description, status, req.OpensAt, req.ClosesAt).Scan(&eventID)
+		VALUES ($1, $2, $3, $4, $5, 'SECRET', $6, $7)
+		RETURNING id`, req.Title, req.Description, status, req.OpensAt, req.ClosesAt, defaultEventMaxVoters, defaultEventMaxCandidates).Scan(&eventID)
 	if err != nil {
 		s.logger.Error("create event failed", "error", err)
 		writeError(w, nethttp.StatusInternalServerError, "internal_error", "failed to create event")
@@ -740,7 +745,15 @@ func (s *Server) voteSessionAuth(next nethttp.Handler) nethttp.Handler {
 			writeError(w, nethttp.StatusUnauthorized, "unauthorized", "missing bearer token")
 			return
 		}
+		if len(header) <= 7 {
+			writeError(w, nethttp.StatusUnauthorized, "unauthorized", "missing bearer token")
+			return
+		}
 		raw := strings.TrimSpace(header[7:])
+		if raw == "" {
+			writeError(w, nethttp.StatusUnauthorized, "unauthorized", "missing bearer token")
+			return
+		}
 		token, err := jwt.ParseWithClaims(raw, &voteClaims{}, func(token *jwt.Token) (any, error) {
 			if token.Method != jwt.SigningMethodHS256 {
 				return nil, errors.New("invalid signing method")
