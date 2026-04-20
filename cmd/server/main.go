@@ -10,6 +10,7 @@ import (
 	"github.com/amard/pemilo-golang/internal/middleware"
 	"github.com/amard/pemilo-golang/internal/repository"
 	"github.com/amard/pemilo-golang/internal/service"
+	"github.com/amard/pemilo-golang/internal/util"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
@@ -32,6 +33,11 @@ func main() {
 		log.Fatalf("failed to ping database: %v", err)
 	}
 	log.Println("connected to database")
+
+	// Run migrations automatically
+	if err := util.RunMigrations(db); err != nil {
+		log.Fatalf("migrations failed: %v", err)
+	}
 
 	// Repositories
 	userRepo := repository.NewUserRepo(db)
