@@ -79,8 +79,9 @@ func main() {
 		// Auth (public)
 		auth := api.Group("/auth")
 		{
-			auth.POST("/register", authHandler.Register)
-			auth.POST("/login", authHandler.Login)
+			authLimiter := middleware.NewRateLimiter(2, 20) // 20 req / 10 min per IP
+			auth.POST("/register", authLimiter.Middleware(), authHandler.Register)
+			auth.POST("/login", authLimiter.Middleware(), authHandler.Login)
 			auth.POST("/logout", authHandler.Logout)
 			auth.GET("/me", middleware.AuthMiddleware(cfg.JWTSecret), authHandler.Me)
 		}
@@ -134,7 +135,8 @@ func main() {
 		// Public voting routes (no auth, rate-limited)
 		public := api.Group("/public")
 		{
-			public.POST("/events/:eventId/vote/prepare", votePublicHandler.Prepare)
+			voteLimiter := middleware.NewRateLimiter(1000, 2) // 1000 req / 2 min per IP
+			public.POST("/events/:eventId/vote/prepare", voteLimiter.Middleware(), votePublicHandler.Prepare)
 			public.POST("/events/:eventId/vote/submit", votePublicHandler.Submit)
 		}
 
