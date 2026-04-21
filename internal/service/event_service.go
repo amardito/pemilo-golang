@@ -59,6 +59,22 @@ func (s *EventService) GetByID(ctx context.Context, eventID, userID string) (*mo
 	return event, nil
 }
 
+// GetPublicInfo returns limited event info without ownership check — safe for public pages.
+func (s *EventService) GetPublicInfo(ctx context.Context, eventID string) (*dto.EventPublicInfo, error) {
+	event, err := s.eventRepo.GetByID(ctx, eventID)
+	if err != nil {
+		return nil, ErrEventNotFound
+	}
+	return &dto.EventPublicInfo{
+		ID:          event.ID,
+		Title:       event.Title,
+		Description: event.Description,
+		Status:      string(event.Status),
+		OpensAt:     event.OpensAt,
+		ClosesAt:    event.ClosesAt,
+	}, nil
+}
+
 func (s *EventService) List(ctx context.Context, userID string) ([]model.Event, error) {
 	return s.eventRepo.ListByOwner(ctx, userID)
 }

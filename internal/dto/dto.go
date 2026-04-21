@@ -42,6 +42,15 @@ type UpdateEventRequest struct {
 	ClosesAt    *time.Time `json:"closes_at"`
 }
 
+type EventPublicInfo struct {
+	ID          string     `json:"id"`
+	Title       string     `json:"title"`
+	Description *string    `json:"description"`
+	Status      string     `json:"status"`
+	OpensAt     *time.Time `json:"opens_at"`
+	ClosesAt    *time.Time `json:"closes_at"`
+}
+
 // ── Slate ──
 
 type CreateSlateRequest struct {

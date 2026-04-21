@@ -67,6 +67,17 @@ func (h *EventHandler) Get(c *gin.Context) {
 	c.JSON(http.StatusOK, dto.SuccessResponse{OK: true, Data: event})
 }
 
+// GET /api/public/events/:eventId — no auth required, returns public fields only
+func (h *EventHandler) GetPublic(c *gin.Context) {
+	eventID := c.Param("eventId")
+	info, err := h.eventService.GetPublicInfo(c.Request.Context(), eventID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, dto.ErrorResponse{OK: false, Error: "event tidak ditemukan"})
+		return
+	}
+	c.JSON(http.StatusOK, dto.SuccessResponse{OK: true, Data: info})
+}
+
 // PATCH /api/events/:eventId
 func (h *EventHandler) Update(c *gin.Context) {
 	var req dto.UpdateEventRequest

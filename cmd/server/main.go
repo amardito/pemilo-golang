@@ -136,6 +136,7 @@ func main() {
 		public := api.Group("/public")
 		{
 			voteLimiter := middleware.NewRateLimiter(1000, 2) // 1000 req / 2 min per IP
+			public.GET("/events/:eventId", eventHandler.GetPublic)
 			public.POST("/events/:eventId/vote/prepare", voteLimiter.Middleware(), votePublicHandler.Prepare)
 			public.POST("/events/:eventId/vote/submit", votePublicHandler.Submit)
 		}
